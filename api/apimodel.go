@@ -78,6 +78,52 @@ type NodeInfo struct {
 	Security            string
 	Key                 string
 	RejectUnknownSni    bool
+	// XHTTP (SplitHTTP) extended options for v26.x
+	XHTTPConfig *XHTTPConfig
+	// VLESS Post-Quantum Encryption (PQE) options for v26.6+
+	EnablePQE bool
+	PQEConfig *PQEConfig
+}
+
+// XHTTPConfig holds extended XHTTP/SplitHTTP transport options introduced in Xray-core v26.x.
+// These fields map 1:1 to conf.SplitHTTPConfig and allow panels to leverage the new
+// CDN-bypass and multiplexing capabilities.
+type XHTTPConfig struct {
+	Mode                 string          `json:"mode"`                 // auto, packet-up, stream-up, stream-one
+	Path                 string          `json:"path"`
+	Host                 string          `json:"host"`
+	XPaddingObfsMode     bool            `json:"xPaddingObfsMode"`
+	NoGRPCHeader         bool            `json:"noGRPCHeader"`
+	ScMaxEachPostBytes   Int32Range      `json:"scMaxEachPostBytes"`
+	ScMinPostsIntervalMs Int32Range      `json:"scMinPostsIntervalMs"`
+	Xmux                 XmuxConfig      `json:"xmux"`
+	Extra                json.RawMessage `json:"extra"`
+}
+
+// Int32Range mirrors conf.Int32Range for JSON marshalling.
+type Int32Range struct {
+	From int32 `json:"from"`
+	To   int32 `json:"to"`
+}
+
+// XmuxConfig maps to conf.XmuxConfig.
+type XmuxConfig struct {
+	MaxConcurrency   Int32Range `json:"maxConcurrency"`
+	MaxConnections   Int32Range `json:"maxConnections"`
+	CMaxReuseTimes   Int32Range `json:"cMaxReuseTimes"`
+	HMaxRequestTimes Int32Range `json:"hMaxRequestTimes"`
+	HMaxReusableSecs Int32Range `json:"hMaxReusableSecs"`
+	HKeepAlivePeriod int64      `json:"hKeepAlivePeriod"`
+}
+
+// PQEConfig holds VLESS Post-Quantum Encryption parameters (Xray-core v26.6.22+).
+// When EnablePQE is true and the underlying xray-core supports PQE, the controller
+// will enable post-quantum encryption for VLESS users.
+type PQEConfig struct {
+	// EncAlgo specifies the post-quantum encryption algorithm, e.g. "mlkem768x25519".
+	EncAlgo string `json:"encAlgo"`
+	// EncPassword is the optional password for the PQE layer.
+	EncPassword string `json:"encPassword"`
 }
 
 type UserInfo struct {

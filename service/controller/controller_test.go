@@ -8,12 +8,14 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/xtls/xray-core/common/serial"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf"
 
 	"github.com/XrayR-project/XrayR/api"
 	"github.com/XrayR-project/XrayR/api/sspanel"
 	_ "github.com/XrayR-project/XrayR/cmd/distro/all"
+	"github.com/XrayR-project/XrayR/app/mydispatcher"
 	"github.com/XrayR-project/XrayR/common/mylego"
 	. "github.com/XrayR-project/XrayR/service/controller"
 )
@@ -30,6 +32,9 @@ func TestController(t *testing.T) {
 	}}
 	serverConfig.Policy = policyConfig
 	config, _ := serverConfig.Build()
+	// Register the custom mydispatcher app so GetFeature(mydispatcher.Type())
+	// succeeds during controller.New().
+	config.App = append(config.App, serial.ToTypedMessage(&mydispatcher.Config{}))
 
 	// config := &core.Config{
 	// 	App: []*serial.TypedMessage{

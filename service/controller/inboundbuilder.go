@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -60,12 +61,23 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	case "V2ray", "Vmess", "Vless":
 		if nodeInfo.EnableVless || (nodeInfo.NodeType == "Vless" && nodeInfo.NodeType != "Vmess") {
 			protocol = "vless"
+			// Determine decryption string: PQE overrides "none" when enabled.
+			// PQE requires a full mlkem768x25519plus string with padding material;
+			// operators must provide it via PQEConfig.Decryption (and a matching
+			// Encryption for users). XrayR does not fabricate key material.
+			decryption := "none"
+			if config.PQEConfig != nil && config.PQEConfig.Enable {
+				if config.PQEConfig.Decryption == "" {
+					return nil, errors.New("PQEConfig enabled but Decryption is empty; provide a full mlkem768x25519plus string")
+				}
+				decryption = config.PQEConfig.Decryption
+			}
 			// Enable fallback
 			if config.EnableFallback {
 				fallbackConfigs, err := buildVlessFallbacks(config.FallBackConfigs)
 				if err == nil {
 					proxySetting = &conf.VLessInboundConfig{
-						Decryption: "none",
+						Decryption: decryption,
 						Fallbacks:  fallbackConfigs,
 					}
 				} else {
@@ -73,7 +85,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 				}
 			} else {
 				proxySetting = &conf.VLessInboundConfig{
-					Decryption: "none",
+					Decryption: decryption,
 				}
 			}
 		} else {
@@ -119,10 +131,6 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		}
 
 		proxySetting.NetworkList = &conf.NetworkList{"tcp", "udp"}
-		proxySetting.IVCheck = true
-		if config.DisableIVCheck {
-			proxySetting.IVCheck = false
-		}
 
 	case "dokodemo-door":
 		protocol = "dokodemo-door"
@@ -187,6 +195,48 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		splithttpSetting := &conf.SplitHTTPConfig{
 			Path: nodeInfo.Path,
 			Host: nodeInfo.Host,
+		}
+		// Apply extended XHTTP options introduced in Xray-core v26.x
+		if xc := nodeInfo.XHTTPConfig; xc != nil {
+			splithttpSetting.Mode = xc.Mode
+			splithttpSetting.XPaddingObfsMode = xc.XPaddingObfsMode
+			splithttpSetting.NoGRPCHeader = xc.NoGRPCHeader
+			if xc.ScMaxEachPostBytes.From > 0 || xc.ScMaxEachPostBytes.To > 0 {
+				splithttpSetting.ScMaxEachPostBytes = conf.Int32Range{
+					From: xc.ScMaxEachPostBytes.From,
+					To:   xc.ScMaxEachPostBytes.To,
+				}
+			}
+			if xc.ScMinPostsIntervalMs.From > 0 || xc.ScMinPostsIntervalMs.To > 0 {
+				splithttpSetting.ScMinPostsIntervalMs = conf.Int32Range{
+					From: xc.ScMinPostsIntervalMs.From,
+					To:   xc.ScMinPostsIntervalMs.To,
+				}
+			}
+			splithttpSetting.Xmux = conf.XmuxConfig{
+				MaxConcurrency: conf.Int32Range{
+					From: xc.Xmux.MaxConcurrency.From,
+					To:   xc.Xmux.MaxConcurrency.To,
+				},
+				MaxConnections: conf.Int32Range{
+					From: xc.Xmux.MaxConnections.From,
+					To:   xc.Xmux.MaxConnections.To,
+				},
+				CMaxReuseTimes: conf.Int32Range{
+					From: xc.Xmux.CMaxReuseTimes.From,
+					To:   xc.Xmux.CMaxReuseTimes.To,
+				},
+				HMaxRequestTimes: conf.Int32Range{
+					From: xc.Xmux.HMaxRequestTimes.From,
+					To:   xc.Xmux.HMaxRequestTimes.To,
+				},
+				HMaxReusableSecs: conf.Int32Range{
+					From: xc.Xmux.HMaxReusableSecs.From,
+					To:   xc.Xmux.HMaxReusableSecs.To,
+				},
+				HKeepAlivePeriod: xc.Xmux.HKeepAlivePeriod,
+			}
+			splithttpSetting.Extra = xc.Extra
 		}
 		streamSetting.SplitHTTPSettings = splithttpSetting
 	}

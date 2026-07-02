@@ -45,10 +45,17 @@ func (c *Controller) buildVmessUser(userInfo *[]api.UserInfo) (users []*protocol
 
 func (c *Controller) buildVlessUser(userInfo *[]api.UserInfo) (users []*protocol.User) {
 	users = make([]*protocol.User, len(*userInfo))
+	// Resolve PQE encryption string once for all users. PQE requires a full
+	// mlkem768x25519plus string; XrayR does not fabricate key material.
+	pqeEncryption := ""
+	if c.config.PQEConfig != nil && c.config.PQEConfig.Enable {
+		pqeEncryption = c.config.PQEConfig.Encryption
+	}
 	for i, user := range *userInfo {
 		vlessAccount := &vless.Account{
-			Id:   user.UUID,
-			Flow: c.nodeInfo.VlessFlow,
+			Id:         user.UUID,
+			Flow:       c.nodeInfo.VlessFlow,
+			Encryption: pqeEncryption,
 		}
 		users[i] = &protocol.User{
 			Level:   0,

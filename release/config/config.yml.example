@@ -69,6 +69,32 @@ Nodes:
         ShortIds: # Required, list of available shortIds for the client, can be used to differentiate between different clients.
           - ""
           - 0123456789abcdef
+      # VLESS Post-Quantum Encryption (Xray-core v26.6.22+, mlkem768x25519plus)
+      # Only takes effect on VLESS inbound. When Enable=true you MUST provide a
+      # full PQE string (with padding material) for both Decryption and Encryption.
+      PQEConfig:
+        Enable: false # Set true to enable post-quantum encryption for all VLESS users
+        Decryption: # Required when Enable=true. Format: mlkem768x25519plus.<mode>.<from>-<to>s.<base64 padding>
+        Encryption: # Required when Enable=true. Must be compatible with Decryption.
+      # TUN inbound (Xray-core v26.1.23+). When enabled, an additional TUN inbound
+      # is registered for transparent proxying on the node host.
+      TUNConfig:
+        Enable: false
+        Name: tun0
+        Tag: # Optional inbound tag, defaults to tun_<nodeTag>
+        Settings: {} # Raw JSON settings forwarded to xray-core's TUN inbound
+      # Process-name based routing/audit rules (Xray-core v26.1.23+).
+      # Matched process names/paths are rejected at the dispatcher layer.
+      ProcessRouteConfig:
+        Enable: false
+        RejectNames: # List of process names to reject, e.g. ["BitTorrent", "Thunder"]
+        RejectPaths: # List of process executable paths to reject
+      # Prometheus metrics endpoint (Xray-core app/metrics). Metrics is a core-level
+      # app; the first node with MetricsConfig.Enable=true will be used to configure it.
+      MetricsConfig:
+        Enable: false
+        Listen: 127.0.0.1:9090 # Address to serve /metrics on
+        Path: /metrics # Metrics URL path
       CertConfig:
         CertMode: dns # Option about how to get certificate: none, file, http, tls, dns. Choose "none" will forcedly disable the tls config.
         CertDomain: "node1.test.com" # Domain to cert

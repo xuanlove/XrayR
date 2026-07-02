@@ -152,6 +152,30 @@ func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
 		Inbound:  inBoundConfig,
 		Outbound: outBoundConfig,
 	}
+
+	// Register Prometheus metrics app if any node enables it.
+	// Metrics is a core-level app; XrayR scans all node configs and uses the
+	// first enabled MetricsConfig as the source of truth.
+	for _, nc := range panelConfig.NodesConfig {
+		if mc := nc.ControllerConfig.MetricsConfig; mc != nil && mc.Enable && mc.Listen != "" {
+			path := mc.Path
+			if path == "" {
+				path = "/metrics"
+			}
+			metricsConf := &conf.MetricsConfig{
+				Tag:    "xrayr_metrics",
+				Listen: mc.Listen,
+			}
+			metricsApp, err := metricsConf.Build()
+			if err != nil {
+				log.Warnf("Failed to build metrics config: %s", err)
+			} else {
+				config.App = append(config.App, serial.ToTypedMessage(metricsApp))
+				log.Printf("Prometheus metrics enabled on http://%s%s", mc.Listen, path)
+			}
+			break
+		}
+	}
 	server, err := core.New(config)
 	if err != nil {
 		log.Panicf("failed to create instance: %s", err)

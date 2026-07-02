@@ -127,6 +127,9 @@ func (c *Controller) Start() error {
 		}
 	}
 
+	// Apply v26.x enhancements: TUN inbound, Prometheus metrics, process routing rules.
+	c.applyEnhancements()
+
 	// Init AutoSpeedLimitConfig
 	if c.config.AutoSpeedLimitConfig == nil {
 		c.config.AutoSpeedLimitConfig = &AutoSpeedLimitConfig{0, 0, 0, 0}
